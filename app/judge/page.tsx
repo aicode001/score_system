@@ -30,26 +30,70 @@ function JudgePageContent() {
         setCurrentUser(user)
       }
       
-      const allPeriods = await getPeriods()
+      const [allPeriods, allPresenters, allQuestions] = await Promise.all([
+        getPeriods(),
+        getUsers('presenter'),
+        getQuestions()
+      ])
+      
       setPeriods(allPeriods)
-      if (allPeriods.length > 0) {
-        setSelectedPeriod(allPeriods[0].id)
-      }
-
-      const allPresenters = await getUsers('presenter')
       setPresenters(allPresenters)
+      setQuestions(allQuestions)
+      
+      // 设置默认选中项
+      let defaultPeriod = ''
+      let defaultPresenter = ''
+      
+      if (allPeriods.length > 0) {
+        defaultPeriod = allPeriods[0].id
+        setSelectedPeriod(defaultPeriod)
+      }
+      
       if (allPresenters.length > 0) {
-        setSelectedPresenter(allPresenters[0].id)
+        defaultPresenter = allPresenters[0].id
+        setSelectedPresenter(defaultPresenter)
       }
 
-      const allQuestions = await getQuestions()
-      setQuestions(allQuestions)
-
-      const initialScores: { [key: string]: number } = {}
-      allQuestions.forEach((q: any) => {
-        initialScores[q.id] = q.minScore
-      })
-      setScores(initialScores)
+      // 立即加载第一个周期和第一个述职人员的评分
+      if (defaultPeriod && defaultPresenter && userId && allQuestions.length > 0) {
+        console.log('初始化加载评分:', { defaultPeriod, defaultPresenter, userId })
+        
+        try {
+          const existingScores = await getScores(defaultPeriod)
+          console.log('初始化获取到的评分:', existingScores)
+          
+          const initialScores: { [key: string]: number } = {}
+          const saved: { [key: string]: boolean } = {}
+          
+          allQuestions.forEach((q: any) => {
+            const existingScore = existingScores.find(
+              (s: any) => s.questionId === q.id && 
+                   s.judgeId === userId && 
+                   s.presenterId === defaultPresenter
+            )
+            initialScores[q.id] = existingScore?.value || q.minScore
+            saved[q.id] = !!existingScore
+            
+            if (existingScore) {
+              console.log(`初始化 - 题目 ${q.title}: 加载已有分数 ${existingScore.value}`)
+            } else {
+              console.log(`初始化 - 题目 ${q.title}: 使用默认分数 ${q.minScore}`)
+            }
+          })
+          
+          setScores(initialScores)
+          setSavedStatus(saved)
+        } catch (error) {
+          console.error('初始化加载评分失败:', error)
+          // 如果加载失败,使用默认分数
+          const initialScores: { [key: string]: number } = {}
+          allQuestions.forEach((q: any) => {
+            initialScores[q.id] = q.minScore
+          })
+          setScores(initialScores)
+        }
+      }
+      
       setLoading(false)
     }
     loadData()
