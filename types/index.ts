@@ -4,6 +4,7 @@ export interface User {
   id: string
   name: string
   role: UserRole
+  password?: string  // 可选,客户端获取时不包含密码
 }
 
 export interface ScoreQuestion {

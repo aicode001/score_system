@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { dataStore } from '@/lib/store'
+import { getUsers, addUser, deleteUser, getQuestions, addQuestion, deleteQuestion, getPeriods, addPeriod, getResults } from '@/lib/client-store'
 import { ArrowLeft, Plus, Trash2, Edit2, Users, ClipboardList, Calendar, BarChart } from 'lucide-react'
 import { User, ScoreQuestion, ScorePeriod } from '@/types'
 
@@ -19,71 +19,87 @@ function AdminPageContent() {
   const [periods, setPeriods] = useState<ScorePeriod[]>([])
   const [results, setResults] = useState<any[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
+  const [loading, setLoading] = useState(true)
 
   const [showUserModal, setShowUserModal] = useState(false)
   const [showQuestionModal, setShowQuestionModal] = useState(false)
   const [showPeriodModal, setShowPeriodModal] = useState(false)
 
-  const [newUser, setNewUser] = useState({ name: '', role: 'judge' as any })
+  const [newUser, setNewUser] = useState({ name: '', role: 'judge' as any, password: '123456' })
   const [newQuestion, setNewQuestion] = useState({ title: '', minScore: 0, maxScore: 10, step: 0.1 })
   const [newPeriod, setNewPeriod] = useState({ name: '', startDate: '', endDate: '', status: 'active' as any })
 
   useEffect(() => {
-    if (userId) {
-      const allUsers = dataStore.getUsers()
-      const user = allUsers.find(u => u.id === userId)
-      setCurrentUser(user)
+    async function loadUser() {
+      if (userId) {
+        const allUsers = await getUsers()
+        const user = allUsers.find((u: any) => u.id === userId)
+        setCurrentUser(user)
+      }
     }
+    loadUser()
     loadData()
   }, [userId])
 
-  const loadData = () => {
-    setUsers(dataStore.getUsers())
-    setQuestions(dataStore.getQuestions())
-    const allPeriods = dataStore.getPeriods()
+  const loadData = async () => {
+    setLoading(true)
+    const [allUsers, allQuestions, allPeriods] = await Promise.all([
+      getUsers(),
+      getQuestions(),
+      getPeriods()
+    ])
+    setUsers(allUsers)
+    setQuestions(allQuestions)
     setPeriods(allPeriods)
+    
     if (allPeriods.length > 0 && !selectedPeriod) {
       setSelectedPeriod(allPeriods[0].id)
-      setResults(dataStore.calculateResults(allPeriods[0].id))
+      const periodResults = await getResults(allPeriods[0].id)
+      setResults(periodResults)
     }
+    setLoading(false)
   }
 
   useEffect(() => {
-    if (selectedPeriod && activeTab === 'results') {
-      setResults(dataStore.calculateResults(selectedPeriod))
+    async function loadResults() {
+      if (selectedPeriod && activeTab === 'results') {
+        const periodResults = await getResults(selectedPeriod)
+        setResults(periodResults)
+      }
     }
+    loadResults()
   }, [selectedPeriod, activeTab])
 
-  const handleAddUser = () => {
-    dataStore.addUser(newUser)
-    setNewUser({ name: '', role: 'judge' })
+  const handleAddUser = async () => {
+    await addUser(newUser)
+    setNewUser({ name: '', role: 'judge', password: '123456' })
     setShowUserModal(false)
     loadData()
   }
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUser = async (id: string) => {
     if (confirm('确定要删除此用户吗?')) {
-      dataStore.deleteUser(id)
+      await deleteUser(id)
       loadData()
     }
   }
 
-  const handleAddQuestion = () => {
-    dataStore.addQuestion(newQuestion)
+  const handleAddQuestion = async () => {
+    await addQuestion(newQuestion)
     setNewQuestion({ title: '', minScore: 0, maxScore: 10, step: 0.1 })
     setShowQuestionModal(false)
     loadData()
   }
 
-  const handleDeleteQuestion = (id: string) => {
+  const handleDeleteQuestion = async (id: string) => {
     if (confirm('确定要删除此题目吗?')) {
-      dataStore.deleteQuestion(id)
+      await deleteQuestion(id)
       loadData()
     }
   }
 
-  const handleAddPeriod = () => {
-    dataStore.addPeriod({
+  const handleAddPeriod = async () => {
+    await addPeriod({
       ...newPeriod,
       startDate: new Date(newPeriod.startDate),
       endDate: new Date(newPeriod.endDate),
@@ -93,7 +109,7 @@ function AdminPageContent() {
     loadData()
   }
 
-  if (!currentUser) {
+  if (loading || !currentUser) {
     return <div className="min-h-screen flex items-center justify-center">加载中...</div>
   }
 
@@ -178,6 +194,7 @@ function AdminPageContent() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">角色</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">默认密码</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                     </tr>
                   </thead>
@@ -193,6 +210,9 @@ function AdminPageContent() {
                           }`}>
                             {user.role === 'judge' ? '评委' : user.role === 'presenter' ? '述职人员' : '管理员'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-500">123456</span>
                         </td>
                         <td className="px-6 py-4">
                           <button
@@ -262,7 +282,7 @@ function AdminPageContent() {
                       <div>
                         <h3 className="font-medium text-gray-800 mb-1">{p.name}</h3>
                         <p className="text-sm text-gray-600">
-                          {p.startDate.toLocaleDateString()} - {p.endDate.toLocaleDateString()}
+                          {new Date(p.startDate).toLocaleDateString()} - {new Date(p.endDate).toLocaleDateString()}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm ${
@@ -353,6 +373,17 @@ function AdminPageContent() {
                   <option value="presenter">述职人员</option>
                   <option value="admin">管理员</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                <input
+                  type="text"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  placeholder="默认密码: 123456"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+                <p className="mt-1 text-xs text-gray-500">用户可以使用此密码登录</p>
               </div>
             </div>
             <div className="flex justify-end space-x-3 mt-6">

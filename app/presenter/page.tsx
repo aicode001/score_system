@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { dataStore } from '@/lib/store'
+import { getUsers, getPeriods, getResults } from '@/lib/client-store'
 import { ArrowLeft, Award } from 'lucide-react'
 
 function PresenterPageContent() {
@@ -14,30 +14,39 @@ function PresenterPageContent() {
   const [periods, setPeriods] = useState<any[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [results, setResults] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (userId) {
-      const users = dataStore.getUsers()
-      const user = users.find(u => u.id === userId)
-      setCurrentUser(user)
+    async function loadData() {
+      setLoading(true)
+      if (userId) {
+        const users = await getUsers()
+        const user = users.find((u: any) => u.id === userId)
+        setCurrentUser(user)
+      }
+      
+      const allPeriods = await getPeriods()
+      setPeriods(allPeriods)
+      if (allPeriods.length > 0) {
+        setSelectedPeriod(allPeriods[0].id)
+      }
+      setLoading(false)
     }
-    
-    const allPeriods = dataStore.getPeriods()
-    setPeriods(allPeriods)
-    if (allPeriods.length > 0) {
-      setSelectedPeriod(allPeriods[0].id)
-    }
+    loadData()
   }, [userId])
 
   useEffect(() => {
-    if (selectedPeriod && userId) {
-      const allResults = dataStore.calculateResults(selectedPeriod)
-      const myResult = allResults.find(r => r.presenterId === userId)
-      setResults(myResult)
+    async function loadResults() {
+      if (selectedPeriod && userId) {
+        const allResults = await getResults(selectedPeriod)
+        const myResult = allResults.find((r: any) => r.presenterId === userId)
+        setResults(myResult)
+      }
     }
+    loadResults()
   }, [selectedPeriod, userId])
 
-  if (!currentUser) {
+  if (loading || !currentUser) {
     return <div className="min-h-screen flex items-center justify-center">加载中...</div>
   }
 

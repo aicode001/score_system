@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { dataStore } from '@/lib/store'
+import { getUsers, getPeriods, getQuestions, getScores, addScore } from '@/lib/client-store'
 import ScoreSlider from '@/components/ScoreSlider'
 import { ArrowLeft, Save, CheckCircle } from 'lucide-react'
 
@@ -19,55 +19,64 @@ function JudgePageContent() {
   const [questions, setQuestions] = useState<any[]>([])
   const [scores, setScores] = useState<{ [key: string]: number }>({})
   const [savedStatus, setSavedStatus] = useState<{ [key: string]: boolean }>({})
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (userId) {
-      const users = dataStore.getUsers()
-      const user = users.find(u => u.id === userId)
-      setCurrentUser(user)
-    }
-    
-    const allPeriods = dataStore.getPeriods()
-    setPeriods(allPeriods)
-    if (allPeriods.length > 0) {
-      setSelectedPeriod(allPeriods[0].id)
-    }
+    async function loadData() {
+      setLoading(true)
+      if (userId) {
+        const users = await getUsers()
+        const user = users.find((u: any) => u.id === userId)
+        setCurrentUser(user)
+      }
+      
+      const allPeriods = await getPeriods()
+      setPeriods(allPeriods)
+      if (allPeriods.length > 0) {
+        setSelectedPeriod(allPeriods[0].id)
+      }
 
-    const allPresenters = dataStore.getUsersByRole('presenter')
-    setPresenters(allPresenters)
-    if (allPresenters.length > 0) {
-      setSelectedPresenter(allPresenters[0].id)
+      const allPresenters = await getUsers('presenter')
+      setPresenters(allPresenters)
+      if (allPresenters.length > 0) {
+        setSelectedPresenter(allPresenters[0].id)
+      }
+
+      const allQuestions = await getQuestions()
+      setQuestions(allQuestions)
+
+      const initialScores: { [key: string]: number } = {}
+      allQuestions.forEach((q: any) => {
+        initialScores[q.id] = q.minScore
+      })
+      setScores(initialScores)
+      setLoading(false)
     }
-
-    const allQuestions = dataStore.getQuestions()
-    setQuestions(allQuestions)
-
-    const initialScores: { [key: string]: number } = {}
-    allQuestions.forEach(q => {
-      initialScores[q.id] = q.minScore
-    })
-    setScores(initialScores)
+    loadData()
   }, [userId])
 
   useEffect(() => {
-    if (selectedPeriod && selectedPresenter && userId) {
-      const existingScores = dataStore.getScores(selectedPeriod)
-      const newScores: { [key: string]: number } = {}
-      const saved: { [key: string]: boolean } = {}
-      
-      questions.forEach(q => {
-        const existingScore = existingScores.find(
-          s => s.questionId === q.id && 
-               s.judgeId === userId && 
-               s.presenterId === selectedPresenter
-        )
-        newScores[q.id] = existingScore?.value || q.minScore
-        saved[q.id] = !!existingScore
-      })
-      
-      setScores(newScores)
-      setSavedStatus(saved)
+    async function loadScores() {
+      if (selectedPeriod && selectedPresenter && userId && questions.length > 0) {
+        const existingScores = await getScores(selectedPeriod)
+        const newScores: { [key: string]: number } = {}
+        const saved: { [key: string]: boolean } = {}
+        
+        questions.forEach((q: any) => {
+          const existingScore = existingScores.find(
+            (s: any) => s.questionId === q.id && 
+                 s.judgeId === userId && 
+                 s.presenterId === selectedPresenter
+          )
+          newScores[q.id] = existingScore?.value || q.minScore
+          saved[q.id] = !!existingScore
+        })
+        
+        setScores(newScores)
+        setSavedStatus(saved)
+      }
     }
+    loadScores()
   }, [selectedPeriod, selectedPresenter, userId, questions])
 
   const handleScoreChange = (questionId: string, value: number) => {
@@ -75,10 +84,10 @@ function JudgePageContent() {
     setSavedStatus(prev => ({ ...prev, [questionId]: false }))
   }
 
-  const handleSaveScore = (questionId: string) => {
+  const handleSaveScore = async (questionId: string) => {
     if (!userId || !selectedPeriod || !selectedPresenter) return
 
-    dataStore.addScore({
+    await addScore({
       questionId,
       judgeId: userId,
       presenterId: selectedPresenter,
@@ -99,7 +108,7 @@ function JudgePageContent() {
     })
   }
 
-  if (!currentUser) {
+  if (loading || !currentUser) {
     return <div className="min-h-screen flex items-center justify-center">加载中...</div>
   }
 
