@@ -57,8 +57,16 @@ function JudgePageContent() {
 
   useEffect(() => {
     async function loadScores() {
-      if (selectedPeriod && selectedPresenter && userId && questions.length > 0) {
+      if (!selectedPeriod || !selectedPresenter || !userId || questions.length === 0) {
+        return
+      }
+      
+      console.log('加载评分数据:', { selectedPeriod, selectedPresenter, userId })
+      
+      try {
         const existingScores = await getScores(selectedPeriod)
+        console.log('获取到的评分:', existingScores)
+        
         const newScores: { [key: string]: number } = {}
         const saved: { [key: string]: boolean } = {}
         
@@ -70,14 +78,24 @@ function JudgePageContent() {
           )
           newScores[q.id] = existingScore?.value || q.minScore
           saved[q.id] = !!existingScore
+          
+          if (existingScore) {
+            console.log(`题目 ${q.title}: 加载已有分数 ${existingScore.value}`)
+          } else {
+            console.log(`题目 ${q.title}: 使用默认分数 ${q.minScore}`)
+          }
         })
         
         setScores(newScores)
         setSavedStatus(saved)
+      } catch (error) {
+        console.error('加载评分失败:', error)
       }
     }
+    
     loadScores()
-  }, [selectedPeriod, selectedPresenter, userId, questions])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPeriod, selectedPresenter, userId])
 
   const handleScoreChange = (questionId: string, value: number) => {
     setScores(prev => ({ ...prev, [questionId]: value }))
