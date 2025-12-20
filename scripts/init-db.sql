@@ -1,0 +1,50 @@
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS score_system DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE score_system;
+
+-- 用户表
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  role ENUM('judge', 'presenter', 'admin') NOT NULL,
+  password VARCHAR(255) NOT NULL DEFAULT '123456',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 评分题目表
+CREATE TABLE IF NOT EXISTS score_questions (
+  id VARCHAR(36) PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  min_score DECIMAL(10,1) NOT NULL,
+  max_score DECIMAL(10,1) NOT NULL,
+  step DECIMAL(10,1) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 评分周期表
+CREATE TABLE IF NOT EXISTS score_periods (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status ENUM('active', 'closed') NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 评分记录表
+CREATE TABLE IF NOT EXISTS scores (
+  id VARCHAR(36) PRIMARY KEY,
+  question_id VARCHAR(36) NOT NULL,
+  judge_id VARCHAR(36) NOT NULL,
+  presenter_id VARCHAR(36) NOT NULL,
+  period_id VARCHAR(36) NOT NULL,
+  value DECIMAL(10,1) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_score (question_id, judge_id, presenter_id, period_id),
+  FOREIGN KEY (question_id) REFERENCES score_questions(id) ON DELETE CASCADE,
+  FOREIGN KEY (judge_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (presenter_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (period_id) REFERENCES score_periods(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
