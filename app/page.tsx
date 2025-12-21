@@ -72,7 +72,7 @@ export default function HomePage() {
                   setSelectedRole('judge')
                   setSelectedUser(null)
                 }}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                className={`p-6 rounded-lg border-2 transition-all ${
                   selectedRole === 'judge'
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-blue-300'
@@ -82,7 +82,7 @@ export default function HomePage() {
                 <div className="font-medium">评委端</div>
               </button>
              {
-                1==2 && (
+                false && (
                 <button
                 onClick={() => {
                   setSelectedRole('presenter')
@@ -104,7 +104,7 @@ export default function HomePage() {
                   setSelectedRole('admin')
                   setSelectedUser(null)
                 }}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                className={`p-6 rounded-lg border-2 transition-all ${
                   selectedRole === 'admin'
                     ? 'border-purple-500 bg-purple-50'
                     : 'border-gray-200 hover:border-purple-300'
