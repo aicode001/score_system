@@ -10,6 +10,7 @@ export interface User {
 export interface ScoreQuestion {
   id: string
   title: string
+  description?: string
   minScore: number
   maxScore: number
   step: number

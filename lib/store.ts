@@ -77,6 +77,7 @@ class DataStore {
     return rows.map((row: any) => ({
       id: row.id,
       title: row.title,
+      description: row.description || '',
       minScore: parseFloat(row.min_score),
       maxScore: parseFloat(row.max_score),
       step: parseFloat(row.step)
@@ -86,8 +87,8 @@ class DataStore {
   async addQuestion(question: Omit<ScoreQuestion, 'id'>): Promise<ScoreQuestion> {
     const id = uuidv4()
     await pool.query(
-      'INSERT INTO score_questions (id, title, min_score, max_score, step) VALUES (?, ?, ?, ?, ?)',
-      [id, question.title, question.minScore, question.maxScore, question.step]
+      'INSERT INTO score_questions (id, title, description, min_score, max_score, step) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, question.title, question.description || null, question.minScore, question.maxScore, question.step]
     )
     return { id, ...question }
   }
@@ -96,9 +97,13 @@ class DataStore {
     const updates: string[] = []
     const values: any[] = []
 
-    if (question.title) {
+    if (question.title !== undefined) {
       updates.push('title = ?')
       values.push(question.title)
+    }
+    if (question.description !== undefined) {
+      updates.push('description = ?')
+      values.push(question.description || null)
     }
     if (question.minScore !== undefined) {
       updates.push('min_score = ?')
@@ -177,6 +182,12 @@ class DataStore {
     }
   }
 
+  async deletePeriod(id: string): Promise<void> {
+    // 同时删除关联的评分记录
+    await pool.query('DELETE FROM scores WHERE period_id = ?', [id])
+    await pool.query('DELETE FROM score_periods WHERE id = ?', [id])
+  }
+
   // 评分管理
   async addScore(score: Omit<Score, 'id' | 'createdAt'>): Promise<Score> {
     const id = uuidv4()
@@ -239,8 +250,25 @@ class DataStore {
         }
       })
 
-      const totalAverage = scoresByQuestion.length > 0
-        ? scoresByQuestion.reduce((sum, sq) => sum + sq.averageScore, 0) / scoresByQuestion.length
+      // 新逻辑：先计算每个评委的总分，再求平均
+      const judgeTotals = judges.map(judge => {
+        let total = 0
+        let count = 0
+        
+        scoresByQuestion.forEach(sq => {
+          const judgeScore = sq.judgeScores.find(js => js.judgeId === judge.id)
+          if (judgeScore && judgeScore.score > 0) {
+            total += judgeScore.score
+            count++
+          }
+        })
+        
+        return count > 0 ? total : 0
+      })
+
+      const validJudgeTotals = judgeTotals.filter(t => t > 0)
+      const totalAverage = validJudgeTotals.length > 0
+        ? validJudgeTotals.reduce((sum, t) => sum + t, 0) / validJudgeTotals.length
         : 0
 
       return {

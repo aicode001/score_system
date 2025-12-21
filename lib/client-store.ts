@@ -70,6 +70,16 @@ export async function deleteQuestion(id: string) {
   return data
 }
 
+export async function updateQuestion(id: string, updates: any) {
+  const res = await fetch('/api/questions', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...updates })
+  })
+  const data = await res.json()
+  return data
+}
+
 export async function getPeriods() {
   const res = await fetch('/api/periods')
   const data = await res.json()
@@ -110,6 +120,13 @@ export async function getResults(periodId: string) {
 
 export async function initDatabase() {
   const res = await fetch('/api/init')
+  const data = await res.json()
+  return data
+}
+export async function deletePeriod(id: string) {
+  const res = await fetch(`/api/periods?id=${id}`, {
+    method: 'DELETE'
+  })
   const data = await res.json()
   return data
 }

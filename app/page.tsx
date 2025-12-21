@@ -81,7 +81,9 @@ export default function HomePage() {
                 <Users className="w-8 h-8 mx-auto mb-2 text-blue-600" />
                 <div className="font-medium">评委端</div>
               </button>
-              <button
+             {
+                1==2 && (
+                <button
                 onClick={() => {
                   setSelectedRole('presenter')
                   setSelectedUser(null)
@@ -95,6 +97,8 @@ export default function HomePage() {
                 <ClipboardList className="w-8 h-8 mx-auto mb-2 text-green-600" />
                 <div className="font-medium">述职人员</div>
               </button>
+                )
+             }  
               <button
                 onClick={() => {
                   setSelectedRole('admin')

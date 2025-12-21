@@ -68,9 +68,9 @@ export async function GET(request: NextRequest) {
           }
         })
         
-        // 该评委给该述职人员的总分（平均分）
-        const avgScore = scoreCount > 0 ? (totalScore / scoreCount).toFixed(1) : '未评分'
-        csv += `${avgScore}\n`
+        // 该评委给该述职人员的总分（总和，不是平均）
+        const judgeTotal = scoreCount > 0 ? totalScore.toFixed(1) : '未评分'
+        csv += `${judgeTotal}\n`
       })
     })
 

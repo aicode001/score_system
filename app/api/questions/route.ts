@@ -35,3 +35,19 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, ...updates } = body
+    
+    if (!id) {
+      return NextResponse.json({ success: false, message: '缺少题目ID' }, { status: 400 })
+    }
+    
+    await dataStore.updateQuestion(id, updates)
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+  }
+}

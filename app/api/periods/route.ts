@@ -23,3 +23,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'ID is required' }, { status: 400 })
+    }
+    await dataStore.deletePeriod(id)
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+  }
+}

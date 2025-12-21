@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS score_questions (
   id VARCHAR(36) PRIMARY KEY,
   title VARCHAR(200) NOT NULL,
+  description TEXT,
   min_score DECIMAL(10,1) NOT NULL,
   max_score DECIMAL(10,1) NOT NULL,
   step DECIMAL(10,1) NOT NULL,

@@ -229,6 +229,11 @@ function JudgePageContent() {
                   <h3 className="text-lg font-medium text-gray-800 mb-1">
                     {index + 1}. {question.title}
                   </h3>
+                  {question.description && (
+                    <p className="text-sm text-gray-600 mb-2 italic bg-blue-50 p-2 rounded border-l-4 border-blue-400">
+                      {question.description}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-500">
                     评分范围: {question.minScore} - {question.maxScore} 分
                   </p>

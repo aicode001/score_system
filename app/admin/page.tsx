@@ -3,7 +3,8 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { getUsers, addUser, updateUser, deleteUser, getQuestions, addQuestion, deleteQuestion, getPeriods, addPeriod, getResults } from '@/lib/client-store'
+import { getUsers, addUser, updateUser, deleteUser, getQuestions, addQuestion, updateQuestion, deleteQuestion, getPeriods, addPeriod, getResults
+    ,deletePeriod } from '@/lib/client-store'
 import { ArrowLeft, Plus, Trash2, Edit2, Users, ClipboardList, Calendar, BarChart, Download } from 'lucide-react'
 import { User, ScoreQuestion, ScorePeriod } from '@/types'
 
@@ -25,9 +26,10 @@ function AdminPageContent() {
   const [showQuestionModal, setShowQuestionModal] = useState(false)
   const [showPeriodModal, setShowPeriodModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editingQuestion, setEditingQuestion] = useState<ScoreQuestion | null>(null)
 
   const [newUser, setNewUser] = useState({ name: '', role: 'judge' as any, password: '123456' })
-  const [newQuestion, setNewQuestion] = useState({ title: '', minScore: 0, maxScore: 10, step: 0.1 })
+  const [newQuestion, setNewQuestion] = useState({ title: '', description: '', minScore: 0, maxScore: 10, step: 0.1 })
   const [newPeriod, setNewPeriod] = useState({ name: '', startDate: '', endDate: '', status: 'active' as any })
 
   useEffect(() => {
@@ -63,13 +65,14 @@ function AdminPageContent() {
 
   useEffect(() => {
     async function loadResults() {
-      if (selectedPeriod && activeTab === 'results') {
+      if (selectedPeriod) {
         const periodResults = await getResults(selectedPeriod)
+        console.log("periodResults",periodResults)
         setResults(periodResults)
       }
     }
     loadResults()
-  }, [selectedPeriod, activeTab])
+  }, [selectedPeriod])
 
   const handleAddUser = async () => {
     if (editingUser) {
@@ -111,10 +114,29 @@ function AdminPageContent() {
   }
 
   const handleAddQuestion = async () => {
-    await addQuestion(newQuestion)
-    setNewQuestion({ title: '', minScore: 0, maxScore: 10, step: 0.1 })
+    if (editingQuestion) {
+      // 编辑题目
+      await updateQuestion(editingQuestion.id, newQuestion)
+      setEditingQuestion(null)
+    } else {
+      // 添加题目
+      await addQuestion(newQuestion)
+    }
+    setNewQuestion({ title: '', description: '', minScore: 0, maxScore: 10, step: 0.1 })
     setShowQuestionModal(false)
     loadData()
+  }
+
+  const handleEditQuestion = (question: ScoreQuestion) => {
+    setEditingQuestion(question)
+    setNewQuestion({
+      title: question.title,
+      description: question.description || '',
+      minScore: question.minScore,
+      maxScore: question.maxScore,
+      step: question.step
+    })
+    setShowQuestionModal(true)
   }
 
   const handleDeleteQuestion = async (id: string) => {
@@ -133,6 +155,13 @@ function AdminPageContent() {
     setNewPeriod({ name: '', startDate: '', endDate: '', status: 'active' })
     setShowPeriodModal(false)
     loadData()
+  }
+
+  const handleDeletePeriod = async (id: string) => {
+    if (confirm('确定要删除此评分周期吗？所有关联的评分记录都将被删除！')) {
+      await deletePeriod(id)
+      loadData()
+    }
   }
 
   const handleExportScores = () => {
@@ -296,19 +325,34 @@ function AdminPageContent() {
               </div>
               <div className="space-y-4">
                 {questions.map((q, index) => (
-                  <div key={q.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium text-gray-800">{index + 1}. {q.title}</h3>
-                      <p className="text-sm text-gray-600">
-                        评分范围: {q.minScore} - {q.maxScore} 分 (步长: {q.step})
-                      </p>
+                  <div key={q.id} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-800 mb-1">{index + 1}. {q.title}</h3>
+                        {q.description && (
+                          <p className="text-sm text-gray-500 mb-2 italic">{q.description}</p>
+                        )}
+                        <p className="text-sm text-gray-600">
+                          评分范围: {q.minScore} - {q.maxScore} 分 (步长: {q.step})
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditQuestion(q)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="编辑题目"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuestion(q.id)}
+                          className="text-red-600 hover:text-red-800"
+                          title="删除题目"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteQuestion(q.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 ))}
               </div>
@@ -342,6 +386,15 @@ function AdminPageContent() {
                       }`}>
                         {p.status === 'active' ? '进行中' : '已结束'}
                       </span>
+                    </div>
+                    <div className="mt-2 flex justify-end">
+                       <button
+                        onClick={() => handleDeletePeriod(p.id)}
+                        className="text-red-600 hover:text-red-800"
+                        title="删除周期"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -478,9 +531,11 @@ function AdminPageContent() {
       )}
 
       {showQuestionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">添加评分题目</h3>
+            <h3 className="text-xl font-bold mb-4">
+              {editingQuestion ? '编辑评分题目' : '添加评分题目'}
+            </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">题目名称</label>
@@ -489,6 +544,19 @@ function AdminPageContent() {
                   value={newQuestion.title}
                   onChange={(e) => setNewQuestion({ ...newQuestion, title: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="请输入题目名称"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  具体描述 <span className="text-xs text-gray-500">(选填)</span>
+                </label>
+                <textarea
+                  value={newQuestion.description}
+                  onChange={(e) => setNewQuestion({ ...newQuestion, description: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  rows={3}
+                  placeholder="评委可以看到此描述（可选）"
                 />
               </div>
               <div className="grid grid-cols-3 gap-3">
@@ -524,7 +592,11 @@ function AdminPageContent() {
             </div>
             <div className="flex justify-end space-x-3 mt-6">
               <button
-                onClick={() => setShowQuestionModal(false)}
+                onClick={() => {
+                  setShowQuestionModal(false)
+                  setEditingQuestion(null)
+                  setNewQuestion({ title: '', description: '', minScore: 0, maxScore: 10, step: 0.1 })
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 取消
@@ -533,7 +605,7 @@ function AdminPageContent() {
                 onClick={handleAddQuestion}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
-                确定
+                {editingQuestion ? '保存' : '添加'}
               </button>
             </div>
           </div>
