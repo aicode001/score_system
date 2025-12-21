@@ -26,6 +26,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, name, role, password } = body
+    
+    if (!id) {
+      return NextResponse.json({ success: false, message: '缺少用户ID' }, { status: 400 })
+    }
+    
+    await dataStore.updateUser(id, { name, role, password })
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -41,3 +57,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
 }
+

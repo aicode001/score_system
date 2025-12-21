@@ -28,6 +28,16 @@ export async function addUser(user: any) {
   return data
 }
 
+export async function updateUser(id: string, updates: any) {
+  const res = await fetch('/api/users', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...updates })
+  })
+  const data = await res.json()
+  return data
+}
+
 export async function deleteUser(id: string) {
   const res = await fetch(`/api/users?id=${id}`, {
     method: 'DELETE'

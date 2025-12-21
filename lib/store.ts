@@ -37,6 +37,32 @@ class DataStore {
     return { id, name: user.name, role: user.role }
   }
 
+  async updateUser(id: string, updates: { name?: string; role?: string; password?: string }): Promise<void> {
+    const updateFields: string[] = []
+    const values: any[] = []
+
+    if (updates.name) {
+      updateFields.push('name = ?')
+      values.push(updates.name)
+    }
+    if (updates.role) {
+      updateFields.push('role = ?')
+      values.push(updates.role)
+    }
+    if (updates.password) {
+      updateFields.push('password = ?')
+      values.push(updates.password)
+    }
+
+    if (updateFields.length > 0) {
+      values.push(id)
+      await pool.query(
+        `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+        values
+      )
+    }
+  }
+
   async updateUserPassword(id: string, newPassword: string): Promise<void> {
     await pool.query('UPDATE users SET password = ? WHERE id = ?', [newPassword, id])
   }
