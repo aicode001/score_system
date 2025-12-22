@@ -122,7 +122,7 @@ export default function HomePage() {
               <div className="text-center py-8 text-gray-500">加载中...</div>
             ) : users.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                暂无用户,请先访问 <a href="/api/init" className="text-blue-600 underline">/api/init</a> 初始化数据
+                暂无用户,请先初始化数据
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
