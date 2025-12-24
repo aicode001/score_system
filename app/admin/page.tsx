@@ -4,18 +4,19 @@ import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getUsers, addUser, updateUser, deleteUser, getQuestions, addQuestion, updateQuestion, deleteQuestion, getPeriods, addPeriod, getResults
-    ,deletePeriod } from '@/lib/client-store'
-import { ArrowLeft, Plus, Trash2, Edit2, Users, ClipboardList, Calendar, BarChart, Download } from 'lucide-react'
-import { User, ScoreQuestion, ScorePeriod } from '@/types'
+    ,deletePeriod, getCategories, addCategory, updateCategory, deleteCategory } from '@/lib/client-store'
+import { ArrowLeft, Plus, Trash2, Edit2, Users, ClipboardList, Calendar, BarChart, Download, FolderOpen } from 'lucide-react'
+import { User, ScoreQuestion, ScorePeriod, ScoreCategory } from '@/types'
 
 function AdminPageContent() {
   const searchParams = useSearchParams()
   const userId = searchParams.get('userId')
   
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'users' | 'questions' | 'periods' | 'results'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'categories' | 'questions' | 'periods' | 'results'>('users')
   
   const [users, setUsers] = useState<User[]>([])
+  const [categories, setCategories] = useState<ScoreCategory[]>([])
   const [questions, setQuestions] = useState<ScoreQuestion[]>([])
   const [periods, setPeriods] = useState<ScorePeriod[]>([])
   const [results, setResults] = useState<any[]>([])
@@ -23,13 +24,16 @@ function AdminPageContent() {
   const [loading, setLoading] = useState(true)
 
   const [showUserModal, setShowUserModal] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showQuestionModal, setShowQuestionModal] = useState(false)
   const [showPeriodModal, setShowPeriodModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editingCategory, setEditingCategory] = useState<ScoreCategory | null>(null)
   const [editingQuestion, setEditingQuestion] = useState<ScoreQuestion | null>(null)
 
   const [newUser, setNewUser] = useState({ name: '', role: 'judge' as any, password: '123456' })
-  const [newQuestion, setNewQuestion] = useState({ title: '', description: '', minScore: 0, maxScore: 10, step: 0.1 })
+  const [newCategory, setNewCategory] = useState({ name: '', description: '', sortOrder: 0 })
+  const [newQuestion, setNewQuestion] = useState({ title: '', description: '', categoryId: '', minScore: 0, maxScore: 10, step: 0.1 })
   const [newPeriod, setNewPeriod] = useState({ name: '', startDate: '', endDate: '', status: 'active' as any })
 
   useEffect(() => {
@@ -46,12 +50,14 @@ function AdminPageContent() {
 
   const loadData = async () => {
     setLoading(true)
-    const [allUsers, allQuestions, allPeriods] = await Promise.all([
+    const [allUsers, allCategories, allQuestions, allPeriods] = await Promise.all([
       getUsers(),
+      getCategories(),
       getQuestions(),
       getPeriods()
     ])
     setUsers(allUsers)
+    setCategories(allCategories)
     setQuestions(allQuestions)
     setPeriods(allPeriods)
     
@@ -113,6 +119,35 @@ function AdminPageContent() {
     }
   }
 
+  const handleAddCategory = async () => {
+    if (editingCategory) {
+      await updateCategory(editingCategory.id, newCategory)
+      setEditingCategory(null)
+    } else {
+      await addCategory(newCategory)
+    }
+    setNewCategory({ name: '', description: '', sortOrder: 0 })
+    setShowCategoryModal(false)
+    loadData()
+  }
+
+  const handleEditCategory = (category: ScoreCategory) => {
+    setEditingCategory(category)
+    setNewCategory({
+      name: category.name,
+      description: category.description || '',
+      sortOrder: category.sortOrder
+    })
+    setShowCategoryModal(true)
+  }
+
+  const handleDeleteCategory = async (id: string) => {
+    if (confirm('确定要删除此类别吗？关联的题目将不再属于任何类别。')) {
+      await deleteCategory(id)
+      loadData()
+    }
+  }
+
   const handleAddQuestion = async () => {
     if (editingQuestion) {
       // 编辑题目
@@ -122,7 +157,7 @@ function AdminPageContent() {
       // 添加题目
       await addQuestion(newQuestion)
     }
-    setNewQuestion({ title: '', description: '', minScore: 0, maxScore: 10, step: 0.1 })
+    setNewQuestion({ title: '', description: '', categoryId: '', minScore: 0, maxScore: 10, step: 0.1 })
     setShowQuestionModal(false)
     loadData()
   }
@@ -132,6 +167,7 @@ function AdminPageContent() {
     setNewQuestion({
       title: question.title,
       description: question.description || '',
+      categoryId: question.categoryId || '',
       minScore: question.minScore,
       maxScore: question.maxScore,
       step: question.step
@@ -200,10 +236,10 @@ function AdminPageContent() {
             <p className="text-gray-600">管理员: {currentUser.name}</p>
           </div>
 
-          <div className="flex space-x-2 mb-6 border-b">
+          <div className="flex space-x-2 mb-6 border-b overflow-x-auto">
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'users'
                   ? 'border-b-2 border-purple-600 text-purple-600'
                   : 'text-gray-600 hover:text-purple-600'
@@ -213,8 +249,19 @@ function AdminPageContent() {
               用户管理
             </button>
             <button
+              onClick={() => setActiveTab('categories')}
+              className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'categories'
+                  ? 'border-b-2 border-purple-600 text-purple-600'
+                  : 'text-gray-600 hover:text-purple-600'
+              }`}
+            >
+              <FolderOpen className="w-5 h-5 inline mr-2" />
+              评分类别
+            </button>
+            <button
               onClick={() => setActiveTab('questions')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'questions'
                   ? 'border-b-2 border-purple-600 text-purple-600'
                   : 'text-gray-600 hover:text-purple-600'
@@ -225,7 +272,7 @@ function AdminPageContent() {
             </button>
             <button
               onClick={() => setActiveTab('periods')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'periods'
                   ? 'border-b-2 border-purple-600 text-purple-600'
                   : 'text-gray-600 hover:text-purple-600'
@@ -236,7 +283,7 @@ function AdminPageContent() {
             </button>
             <button
               onClick={() => setActiveTab('results')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'results'
                   ? 'border-b-2 border-purple-600 text-purple-600'
                   : 'text-gray-600 hover:text-purple-600'
@@ -311,6 +358,54 @@ function AdminPageContent() {
             </div>
           )}
 
+          {activeTab === 'categories' && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">评分类别</h2>
+                <button
+                  onClick={() => setShowCategoryModal(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg inline-flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  添加类别
+                </button>
+              </div>
+              <div className="space-y-4">
+                {categories.map((c, index) => (
+                  <div key={c.id} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-800 mb-1">{index + 1}. {c.name}</h3>
+                        {c.description && (
+                          <p className="text-sm text-gray-500 mb-2 italic">{c.description}</p>
+                        )}
+                        <p className="text-sm text-gray-600">
+                          排序: {c.sortOrder}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditCategory(c)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="编辑类别"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategory(c.id)}
+                          className="text-red-600 hover:text-red-800"
+                          title="删除类别"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'questions' && (
             <div>
               <div className="flex justify-between items-center mb-4">
@@ -328,7 +423,14 @@ function AdminPageContent() {
                   <div key={q.id} className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-800 mb-1">{index + 1}. {q.title}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-gray-800">{index + 1}. {q.title}</h3>
+                          {q.categoryName && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                              {q.categoryName}
+                            </span>
+                          )}
+                        </div>
                         {q.description && (
                           <p className="text-sm text-gray-500 mb-2 italic">{q.description}</p>
                         )}
@@ -432,23 +534,37 @@ function AdminPageContent() {
               <div className="space-y-6">
                 {results.map(result => (
                   <div key={result.presenterId} className="bg-gray-50 p-6 rounded-lg">
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-bold text-gray-800">{result.presenterName}</h3>
-                      <div className="text-3xl font-bold text-purple-600">{result.totalAverage}</div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-600 mb-1">总平均分</div>
+                        <div className="text-3xl font-bold text-purple-600">{result.totalAverage}</div>
+                      </div>
                     </div>
                     
-                    <div className="space-y-3">
-                      {result.scores.map((scoreItem: any) => (
-                        <div key={scoreItem.questionId} className="bg-white p-4 rounded">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium text-gray-700">{scoreItem.questionTitle}</span>
-                            <span className="text-xl font-bold text-gray-900">{scoreItem.averageScore}</span>
+                    <div className="space-y-6">
+                      {result.categories.map((category: any) => (
+                        <div key={category.categoryId || 'uncategorized'} className="border-l-4 border-blue-500 pl-4">
+                          <div className="flex justify-between items-center mb-3">
+                            <h4 className="text-lg font-bold text-gray-700">{category.categoryName}</h4>
+                            <span className="text-2xl font-bold text-blue-600">{category.categoryTotal}</span>
                           </div>
-                          <div className="text-xs text-gray-500 space-y-1">
-                            {scoreItem.judgeScores.map((js: any) => (
-                              <div key={js.judgeId} className="flex justify-between">
-                                <span>{js.judgeName}:</span>
-                                <span>{js.score > 0 ? js.score.toFixed(1) : '未评分'}</span>
+                          
+                          <div className="space-y-3">
+                            {category.scores.map((scoreItem: any) => (
+                              <div key={scoreItem.questionId} className="bg-white p-4 rounded">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="font-medium text-gray-700">{scoreItem.questionTitle}</span>
+                                  <span className="text-xl font-bold text-gray-900">{scoreItem.averageScore}</span>
+                                </div>
+                                <div className="text-xs text-gray-500 space-y-1">
+                                  {scoreItem.judgeScores.map((js: any) => (
+                                    <div key={js.judgeId} className="flex justify-between">
+                                      <span>{js.judgeName}:</span>
+                                      <span>{js.score > 0 ? js.score.toFixed(1) : '未评分'}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -530,6 +646,68 @@ function AdminPageContent() {
         </div>
       )}
 
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">
+              {editingCategory ? '编辑评分类别' : '添加评分类别'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">类别名称</label>
+                <input
+                  type="text"
+                  value={newCategory.name}
+                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="请输入类别名称"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  类别描述 <span className="text-xs text-gray-500">(选填)</span>
+                </label>
+                <textarea
+                  value={newCategory.description}
+                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  rows={3}
+                  placeholder="评委可以看到此描述（可选）"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">排序</label>
+                <input
+                  type="number"
+                  value={newCategory.sortOrder}
+                  onChange={(e) => setNewCategory({ ...newCategory, sortOrder: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="数字越小越靠前"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCategoryModal(false)
+                  setEditingCategory(null)
+                  setNewCategory({ name: '', description: '', sortOrder: 0 })
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleAddCategory}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                {editingCategory ? '保存' : '添加'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showQuestionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
@@ -558,6 +736,23 @@ function AdminPageContent() {
                   rows={3}
                   placeholder="评委可以看到此描述（可选）"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  评分类别 <span className="text-xs text-gray-500">(选填)</span>
+                </label>
+                <select
+                  value={newQuestion.categoryId}
+                  onChange={(e) => setNewQuestion({ ...newQuestion, categoryId: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">无类别</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
@@ -595,7 +790,7 @@ function AdminPageContent() {
                 onClick={() => {
                   setShowQuestionModal(false)
                   setEditingQuestion(null)
-                  setNewQuestion({ title: '', description: '', minScore: 0, maxScore: 10, step: 0.1 })
+                  setNewQuestion({ title: '', description: '', categoryId: '', minScore: 0, maxScore: 10, step: 0.1 })
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >

@@ -10,8 +10,10 @@ import { ArrowLeft, Save, CheckCircle } from 'lucide-react'
 function JudgePageContent() {
   const searchParams = useSearchParams()
   const userId = searchParams.get('userId')
+  const categoryId = searchParams.get('categoryId')
   
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentCategory, setCurrentCategory] = useState<string>('')
   const [periods, setPeriods] = useState<any[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [presenters, setPresenters] = useState<any[]>([])
@@ -29,11 +31,15 @@ function JudgePageContent() {
         const user = users.find((u: any) => u.id === userId)
         setCurrentUser(user)
       }
+
+      if (categoryId) {
+        setCurrentCategory(categoryId)
+      }
       
       const [allPeriods, allPresenters, allQuestions] = await Promise.all([
         getPeriods(),
         getUsers('presenter'),
-        getQuestions()
+        categoryId ? getQuestions(categoryId) : getQuestions()
       ])
       
       setPeriods(allPeriods)
@@ -97,7 +103,7 @@ function JudgePageContent() {
       setLoading(false)
     }
     loadData()
-  }, [userId])
+  }, [userId, categoryId])
 
   useEffect(() => {
     async function loadScores() {
@@ -178,9 +184,9 @@ function JudgePageContent() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <Link href="/" className="inline-flex items-center text-blue-600 hover:text-blue-800">
+          <Link href={categoryId ? `/judge-select?userId=${userId}` : "/"} className="inline-flex items-center text-blue-600 hover:text-blue-800">
             <ArrowLeft className="w-4 h-4 mr-1" />
-            返回首页
+            {categoryId ? '返回类别选择' : '返回首页'}
           </Link>
         </div>
 

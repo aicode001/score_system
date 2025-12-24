@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dataStore } from '@/lib/store'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const categoryId = searchParams.get('categoryId')
-    
-    const questions = categoryId 
-      ? await dataStore.getQuestionsByCategory(categoryId)
-      : await dataStore.getQuestions()
-    
-    return NextResponse.json({ success: true, data: questions })
+    const categories = await dataStore.getCategories()
+    return NextResponse.json({ success: true, data: categories })
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
@@ -19,8 +13,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const question = await dataStore.addQuestion(body)
-    return NextResponse.json({ success: true, data: question })
+    const category = await dataStore.addCategory(body)
+    return NextResponse.json({ success: true, data: category })
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
@@ -32,10 +26,10 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id')
     
     if (!id) {
-      return NextResponse.json({ success: false, message: '缺少题目ID' }, { status: 400 })
+      return NextResponse.json({ success: false, message: '缺少类别ID' }, { status: 400 })
     }
     
-    await dataStore.deleteQuestion(id)
+    await dataStore.deleteCategory(id)
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
@@ -48,10 +42,10 @@ export async function PUT(request: NextRequest) {
     const { id, ...updates } = body
     
     if (!id) {
-      return NextResponse.json({ success: false, message: '缺少题目ID' }, { status: 400 })
+      return NextResponse.json({ success: false, message: '缺少类别ID' }, { status: 400 })
     }
     
-    await dataStore.updateQuestion(id, updates)
+    await dataStore.updateCategory(id, updates)
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })

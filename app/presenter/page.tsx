@@ -89,21 +89,32 @@ function PresenterPageContent() {
                 <div className="text-5xl font-bold">{results.totalAverage}</div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <h3 className="text-xl font-bold text-gray-800">各项评分详情</h3>
-                {results.scores.map((scoreItem: any) => (
-                  <div key={scoreItem.questionId} className="bg-gray-50 p-6 rounded-lg">
+                {results.categories.map((category: any) => (
+                  <div key={category.categoryId || 'uncategorized'} className="border-l-4 border-green-500 pl-4">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-lg font-medium text-gray-800">{scoreItem.questionTitle}</h4>
-                      <span className="text-2xl font-bold text-green-600">{scoreItem.averageScore}</span>
+                      <h4 className="text-lg font-bold text-gray-700">{category.categoryName}</h4>
+                      <span className="text-2xl font-bold text-green-600">{category.categoryTotal}</span>
                     </div>
                     
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-gray-600">评委评分:</p>
-                      {scoreItem.judgeScores.map((js: any) => (
-                        <div key={js.judgeId} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
-                          <span className="text-gray-700">{js.judgeName}</span>
-                          <span className="font-medium text-gray-900">{js.score > 0 ? js.score.toFixed(1) : '未评分'}</span>
+                    <div className="space-y-4">
+                      {category.scores.map((scoreItem: any) => (
+                        <div key={scoreItem.questionId} className="bg-gray-50 p-6 rounded-lg">
+                          <div className="flex justify-between items-center mb-4">
+                            <h5 className="text-base font-medium text-gray-800">{scoreItem.questionTitle}</h5>
+                            <span className="text-xl font-bold text-gray-900">{scoreItem.averageScore}</span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-gray-600">评委评分:</p>
+                            {scoreItem.judgeScores.map((js: any) => (
+                              <div key={js.judgeId} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
+                                <span className="text-gray-700">{js.judgeName}</span>
+                                <span className="font-medium text-gray-900">{js.score > 0 ? js.score.toFixed(1) : '未评分'}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>

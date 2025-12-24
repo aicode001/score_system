@@ -46,8 +46,9 @@ export async function deleteUser(id: string) {
   return data
 }
 
-export async function getQuestions() {
-  const res = await fetch('/api/questions')
+export async function getQuestions(categoryId?: string) {
+  const url = categoryId ? `/api/questions?categoryId=${categoryId}` : '/api/questions'
+  const res = await fetch(url)
   const data = await res.json()
   return data.success ? data.data : []
 }
@@ -125,6 +126,41 @@ export async function initDatabase() {
 }
 export async function deletePeriod(id: string) {
   const res = await fetch(`/api/periods?id=${id}`, {
+    method: 'DELETE'
+  })
+  const data = await res.json()
+  return data
+}
+
+// 类别管理
+export async function getCategories() {
+  const res = await fetch('/api/categories')
+  const data = await res.json()
+  return data.success ? data.data : []
+}
+
+export async function addCategory(category: any) {
+  const res = await fetch('/api/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(category)
+  })
+  const data = await res.json()
+  return data
+}
+
+export async function updateCategory(id: string, updates: any) {
+  const res = await fetch('/api/categories', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...updates })
+  })
+  const data = await res.json()
+  return data
+}
+
+export async function deleteCategory(id: string) {
+  const res = await fetch(`/api/categories?id=${id}`, {
     method: 'DELETE'
   })
   const data = await res.json()

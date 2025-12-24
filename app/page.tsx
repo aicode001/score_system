@@ -48,7 +48,12 @@ export default function HomePage() {
 
     if (result.success) {
       // 登录成功,跳转到对应页面
-      router.push(`/${selectedRole}?userId=${result.data.id}`)
+      if (selectedRole === 'judge') {
+        // 评委先进入选择类别页面
+        router.push(`/judge-select?userId=${result.data.id}`)
+      } else {
+        router.push(`/${selectedRole}?userId=${result.data.id}`)
+      }
     } else {
       setLoginError(result.message || '登录失败')
       setPassword('')

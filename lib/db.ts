@@ -28,15 +28,29 @@ export async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `)
 
+    // 创建评分类别表
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS score_categories (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        description TEXT,
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `)
+
     // 创建评分题目表
     await connection.query(`
       CREATE TABLE IF NOT EXISTS score_questions (
         id VARCHAR(36) PRIMARY KEY,
         title VARCHAR(200) NOT NULL,
+        description TEXT,
+        category_id VARCHAR(36),
         min_score DECIMAL(10,1) NOT NULL,
         max_score DECIMAL(10,1) NOT NULL,
         step DECIMAL(10,1) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (category_id) REFERENCES score_categories(id) ON DELETE SET NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `)
 

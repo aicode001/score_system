@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     // 获取数据
     const results = await dataStore.calculateResults(periodId)
-    const questions = await dataStore.getQuestions()
+    const categories = await dataStore.getCategories()
     const periods = await dataStore.getPeriods()
     const judges = await dataStore.getUsersByRole('judge')
     const period = periods.find(p => p.id === periodId)
@@ -40,37 +40,26 @@ export async function GET(request: NextRequest) {
     judges.forEach((judge, judgeIndex) => {
       if (judgeIndex > 0) csv += '\n' // 评委之间空一行
       
-      csv += `评委,${judge.name}\n`
-      
-      // 表头
-      csv += '述职人员,'
-      questions.forEach(q => {
-        csv += `${q.title},`
-      })
-      csv += '总分\n'
+      csv += `评委,${judge.name}\n\n`
       
       // 每个述职人员的数据
       results.forEach(result => {
-        csv += `${result.presenterName},`
+        csv += `述职人员,${result.presenterName},总平均分,${result.totalAverage}\n`
         
-        let totalScore = 0
-        let scoreCount = 0
-        
-        // 该评委对每个问题的评分
-        result.scores.forEach(scoreItem => {
-          const judgeScore = scoreItem.judgeScores.find(js => js.judgeId === judge.id)
-          if (judgeScore && judgeScore.score > 0) {
-            csv += `${judgeScore.score.toFixed(1)},`
-            totalScore += judgeScore.score
-            scoreCount++
-          } else {
-            csv += '未评分,'
-          }
+        // 按类别显示
+        result.categories.forEach(category => {
+          csv += `\n类别,${category.categoryName},类别总分,${category.categoryTotal}\n`
+          csv += '题目,平均分,该评委评分\n'
+          
+          // 该类别下的每个题目
+          category.scores.forEach(scoreItem => {
+            const judgeScore = scoreItem.judgeScores.find(js => js.judgeId === judge.id)
+            const score = judgeScore && judgeScore.score > 0 ? judgeScore.score.toFixed(1) : '未评分'
+            csv += `${scoreItem.questionTitle},${scoreItem.averageScore},${score}\n`
+          })
         })
         
-        // 该评委给该述职人员的总分（总和，不是平均）
-        const judgeTotal = scoreCount > 0 ? totalScore.toFixed(1) : '未评分'
-        csv += `${judgeTotal}\n`
+        csv += '\n' // 述职人员之间空一行
       })
     })
 

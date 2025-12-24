@@ -7,10 +7,19 @@ export interface User {
   password?: string  // 可选,客户端获取时不包含密码
 }
 
+export interface ScoreCategory {
+  id: string
+  name: string
+  description?: string
+  sortOrder: number
+}
+
 export interface ScoreQuestion {
   id: string
   title: string
   description?: string
+  categoryId?: string
+  categoryName?: string
   minScore: number
   maxScore: number
   step: number
@@ -37,15 +46,20 @@ export interface ScorePeriod {
 export interface ScoreResult {
   presenterId: string
   presenterName: string
-  scores: {
-    questionId: string
-    questionTitle: string
-    averageScore: number
-    judgeScores: {
-      judgeId: string
-      judgeName: string
-      score: number
+  categories: {
+    categoryId: string | null
+    categoryName: string
+    scores: {
+      questionId: string
+      questionTitle: string
+      averageScore: number
+      judgeScores: {
+        judgeId: string
+        judgeName: string
+        score: number
+      }[]
     }[]
+    categoryTotal: number
   }[]
   totalAverage: number
 }

@@ -1,4 +1,4 @@
-import { User, ScoreQuestion, Score, ScorePeriod, ScoreResult, UserRole } from '@/types'
+import { User, ScoreQuestion, Score, ScorePeriod, ScoreResult, UserRole, ScoreCategory } from '@/types'
 import pool from './db'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -71,13 +71,92 @@ class DataStore {
     await pool.query('DELETE FROM users WHERE id = ?', [id])
   }
 
+  // 类别管理
+  async getCategories(): Promise<ScoreCategory[]> {
+    const [rows]: any = await pool.query('SELECT * FROM score_categories ORDER BY sort_order, created_at')
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description || '',
+      sortOrder: row.sort_order || 0
+    }))
+  }
+
+  async addCategory(category: Omit<ScoreCategory, 'id'>): Promise<ScoreCategory> {
+    const id = uuidv4()
+    await pool.query(
+      'INSERT INTO score_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)',
+      [id, category.name, category.description || null, category.sortOrder || 0]
+    )
+    return { id, ...category }
+  }
+
+  async updateCategory(id: string, category: Partial<ScoreCategory>): Promise<void> {
+    const updates: string[] = []
+    const values: any[] = []
+
+    if (category.name !== undefined) {
+      updates.push('name = ?')
+      values.push(category.name)
+    }
+    if (category.description !== undefined) {
+      updates.push('description = ?')
+      values.push(category.description || null)
+    }
+    if (category.sortOrder !== undefined) {
+      updates.push('sort_order = ?')
+      values.push(category.sortOrder)
+    }
+
+    if (updates.length > 0) {
+      values.push(id)
+      await pool.query(
+        `UPDATE score_categories SET ${updates.join(', ')} WHERE id = ?`,
+        values
+      )
+    }
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    // 删除类别时，将关联题目的类别ID设为NULL
+    await pool.query('UPDATE score_questions SET category_id = NULL WHERE category_id = ?', [id])
+    await pool.query('DELETE FROM score_categories WHERE id = ?', [id])
+  }
+
   // 题目管理
   async getQuestions(): Promise<ScoreQuestion[]> {
-    const [rows]: any = await pool.query('SELECT * FROM score_questions ORDER BY created_at')
+    const [rows]: any = await pool.query(`
+      SELECT q.*, c.name as category_name 
+      FROM score_questions q
+      LEFT JOIN score_categories c ON q.category_id = c.id
+      ORDER BY q.created_at
+    `)
     return rows.map((row: any) => ({
       id: row.id,
       title: row.title,
       description: row.description || '',
+      categoryId: row.category_id || undefined,
+      categoryName: row.category_name || undefined,
+      minScore: parseFloat(row.min_score),
+      maxScore: parseFloat(row.max_score),
+      step: parseFloat(row.step)
+    }))
+  }
+
+  async getQuestionsByCategory(categoryId: string): Promise<ScoreQuestion[]> {
+    const [rows]: any = await pool.query(`
+      SELECT q.*, c.name as category_name 
+      FROM score_questions q
+      LEFT JOIN score_categories c ON q.category_id = c.id
+      WHERE q.category_id = ?
+      ORDER BY q.created_at
+    `, [categoryId])
+    return rows.map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description || '',
+      categoryId: row.category_id,
+      categoryName: row.category_name || undefined,
       minScore: parseFloat(row.min_score),
       maxScore: parseFloat(row.max_score),
       step: parseFloat(row.step)
@@ -87,8 +166,8 @@ class DataStore {
   async addQuestion(question: Omit<ScoreQuestion, 'id'>): Promise<ScoreQuestion> {
     const id = uuidv4()
     await pool.query(
-      'INSERT INTO score_questions (id, title, description, min_score, max_score, step) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, question.title, question.description || null, question.minScore, question.maxScore, question.step]
+      'INSERT INTO score_questions (id, title, description, category_id, min_score, max_score, step) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, question.title, question.description || null, question.categoryId || null, question.minScore, question.maxScore, question.step]
     )
     return { id, ...question }
   }
@@ -104,6 +183,10 @@ class DataStore {
     if (question.description !== undefined) {
       updates.push('description = ?')
       values.push(question.description || null)
+    }
+    if (question.categoryId !== undefined) {
+      updates.push('category_id = ?')
+      values.push(question.categoryId || null)
     }
     if (question.minScore !== undefined) {
       updates.push('min_score = ?')
@@ -221,60 +304,101 @@ class DataStore {
     const presenters = await this.getUsersByRole('presenter')
     const judges = await this.getUsersByRole('judge')
     const questions = await this.getQuestions()
+    const categories = await this.getCategories()
 
     return presenters.map(presenter => {
       const presenterScores = scores.filter(s => s.presenterId === presenter.id)
       
-      const scoresByQuestion = questions.map(question => {
-        const questionScores = presenterScores.filter(s => s.questionId === question.id)
-        
-        const judgeScores = judges.map(judge => {
-          const judgeScore = questionScores.find(s => s.judgeId === judge.id)
-          return {
-            judgeId: judge.id,
-            judgeName: judge.name,
-            score: judgeScore?.value || 0,
-          }
-        })
-
-        const validScores = judgeScores.filter(js => js.score > 0)
-        const averageScore = validScores.length > 0
-          ? validScores.reduce((sum, js) => sum + js.score, 0) / validScores.length
-          : 0
-
-        return {
-          questionId: question.id,
-          questionTitle: question.title,
-          averageScore: parseFloat(averageScore.toFixed(1)),
-          judgeScores,
+      // 按类别分组题目
+      const categoryMap = new Map<string | null, typeof questions>()
+      
+      // 先添加所有已配置的类别
+      categories.forEach(cat => {
+        categoryMap.set(cat.id, [])
+      })
+      
+      // 添加"无类别"分组
+      categoryMap.set(null, [])
+      
+      // 将题目分配到对应类别
+      questions.forEach(question => {
+        const categoryId = question.categoryId || null
+        if (!categoryMap.has(categoryId)) {
+          categoryMap.set(categoryId, [])
         }
+        categoryMap.get(categoryId)!.push(question)
       })
 
-      // 新逻辑：先计算每个评委的总分，再求平均
-      const judgeTotals = judges.map(judge => {
-        let total = 0
-        let count = 0
-        
-        scoresByQuestion.forEach(sq => {
-          const judgeScore = sq.judgeScores.find(js => js.judgeId === judge.id)
-          if (judgeScore && judgeScore.score > 0) {
-            total += judgeScore.score
-            count++
+      // 处理每个类别的评分
+      const categoryResults = Array.from(categoryMap.entries())
+        .filter(([_, questions]) => questions.length > 0) // 只保留有题目的类别
+        .map(([categoryId, categoryQuestions]) => {
+          const category = categoryId ? categories.find(c => c.id === categoryId) : null
+          
+          const scoresByQuestion = categoryQuestions.map(question => {
+            const questionScores = presenterScores.filter(s => s.questionId === question.id)
+            
+            const judgeScores = judges.map(judge => {
+              const judgeScore = questionScores.find(s => s.judgeId === judge.id)
+              return {
+                judgeId: judge.id,
+                judgeName: judge.name,
+                score: judgeScore?.value || 0,
+              }
+            })
+
+            const validScores = judgeScores.filter(js => js.score > 0)
+            const averageScore = validScores.length > 0
+              ? validScores.reduce((sum, js) => sum + js.score, 0) / validScores.length
+              : 0
+
+            return {
+              questionId: question.id,
+              questionTitle: question.title,
+              averageScore: parseFloat(averageScore.toFixed(1)),
+              judgeScores,
+            }
+          })
+
+          // 计算该类别下每个评委的总分，然后求平均
+          const judgeTotals = judges.map(judge => {
+            let total = 0
+            let count = 0
+            
+            scoresByQuestion.forEach(sq => {
+              const judgeScore = sq.judgeScores.find(js => js.judgeId === judge.id)
+              if (judgeScore && judgeScore.score > 0) {
+                total += judgeScore.score
+                count++
+              }
+            })
+            
+            return count > 0 ? total : 0
+          })
+
+          const validJudgeTotals = judgeTotals.filter(t => t > 0)
+          const categoryTotal = validJudgeTotals.length > 0
+            ? validJudgeTotals.reduce((sum, t) => sum + t, 0) / validJudgeTotals.length
+            : 0
+
+          return {
+            categoryId: categoryId,
+            categoryName: category?.name || '未分类',
+            scores: scoresByQuestion,
+            categoryTotal: parseFloat(categoryTotal.toFixed(1)),
           }
         })
-        
-        return count > 0 ? total : 0
-      })
 
-      const validJudgeTotals = judgeTotals.filter(t => t > 0)
-      const totalAverage = validJudgeTotals.length > 0
-        ? validJudgeTotals.reduce((sum, t) => sum + t, 0) / validJudgeTotals.length
+      // 计算总平均分（所有类别的平均）
+      const validCategoryTotals = categoryResults.filter(cr => cr.categoryTotal > 0)
+      const totalAverage = validCategoryTotals.length > 0
+        ? validCategoryTotals.reduce((sum, cr) => sum + cr.categoryTotal, 0) / validCategoryTotals.length
         : 0
 
       return {
         presenterId: presenter.id,
         presenterName: presenter.name,
-        scores: scoresByQuestion,
+        categories: categoryResults,
         totalAverage: parseFloat(totalAverage.toFixed(1)),
       }
     })
