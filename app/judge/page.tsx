@@ -213,7 +213,7 @@ function JudgePageContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">选择述职人员</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">选择参评对象</label>
               <select
                 value={selectedPresenter}
                 onChange={(e) => setSelectedPresenter(e.target.value)}
