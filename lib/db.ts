@@ -23,8 +23,10 @@ export async function initDatabase() {
         id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         role ENUM('judge', 'presenter', 'admin') NOT NULL,
+        category_id VARCHAR(36),
         password VARCHAR(255) NOT NULL DEFAULT '123456',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (category_id) REFERENCES score_categories(id) ON DELETE SET NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `)
 

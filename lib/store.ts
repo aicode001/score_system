@@ -5,18 +5,71 @@ import { v4 as uuidv4 } from 'uuid'
 class DataStore {
   // 用户管理
   async getUsers(): Promise<User[]> {
-    const [rows]: any = await pool.query('SELECT id, name, role, created_at FROM users ORDER BY created_at DESC')
-    return rows as User[]
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.name, u.role, u.category_id, c.name as category_name, u.created_at 
+      FROM users u
+      LEFT JOIN score_categories c ON u.category_id = c.id
+      ORDER BY u.created_at DESC
+    `)
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      categoryId: row.category_id || undefined,
+      categoryName: row.category_name || undefined
+    }))
   }
 
   async getUsersByRole(role: UserRole): Promise<User[]> {
-    const [rows]: any = await pool.query('SELECT id, name, role, created_at FROM users WHERE role = ? ORDER BY created_at DESC', [role])
-    return rows as User[]
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.name, u.role, u.category_id, c.name as category_name, u.created_at 
+      FROM users u
+      LEFT JOIN score_categories c ON u.category_id = c.id
+      WHERE u.role = ? 
+      ORDER BY u.created_at DESC
+    `, [role])
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      categoryId: row.category_id || undefined,
+      categoryName: row.category_name || undefined
+    }))
+  }
+
+  async getUsersByRoleAndCategory(role: UserRole, categoryId: string): Promise<User[]> {
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.name, u.role, u.category_id, c.name as category_name, u.created_at 
+      FROM users u
+      LEFT JOIN score_categories c ON u.category_id = c.id
+      WHERE u.role = ? AND u.category_id = ?
+      ORDER BY u.created_at DESC
+    `, [role, categoryId])
+    return rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      categoryId: row.category_id || undefined,
+      categoryName: row.category_name || undefined
+    }))
   }
 
   async getUserById(id: string): Promise<User | null> {
-    const [rows]: any = await pool.query('SELECT id, name, role, created_at FROM users WHERE id = ?', [id])
-    return rows.length > 0 ? rows[0] : null
+    const [rows]: any = await pool.query(`
+      SELECT u.id, u.name, u.role, u.category_id, c.name as category_name, u.created_at 
+      FROM users u
+      LEFT JOIN score_categories c ON u.category_id = c.id
+      WHERE u.id = ?
+    `, [id])
+    if (rows.length === 0) return null
+    const row = rows[0]
+    return {
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      categoryId: row.category_id || undefined,
+      categoryName: row.category_name || undefined
+    }
   }
 
   async verifyUser(name: string, password: string, role: UserRole): Promise<User | null> {
@@ -31,13 +84,13 @@ class DataStore {
     const id = uuidv4()
     const password = user.password || '123456'
     await pool.query(
-      'INSERT INTO users (id, name, role, password) VALUES (?, ?, ?, ?)',
-      [id, user.name, user.role, password]
+      'INSERT INTO users (id, name, role, category_id, password) VALUES (?, ?, ?, ?, ?)',
+      [id, user.name, user.role, user.categoryId || null, password]
     )
-    return { id, name: user.name, role: user.role }
+    return { id, name: user.name, role: user.role, categoryId: user.categoryId, categoryName: user.categoryName }
   }
 
-  async updateUser(id: string, updates: { name?: string; role?: string; password?: string }): Promise<void> {
+  async updateUser(id: string, updates: { name?: string; role?: string; password?: string; categoryId?: string }): Promise<void> {
     const updateFields: string[] = []
     const values: any[] = []
 
@@ -52,6 +105,10 @@ class DataStore {
     if (updates.password) {
       updateFields.push('password = ?')
       values.push(updates.password)
+    }
+    if (updates.categoryId !== undefined) {
+      updateFields.push('category_id = ?')
+      values.push(updates.categoryId || null)
     }
 
     if (updateFields.length > 0) {

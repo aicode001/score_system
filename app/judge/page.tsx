@@ -38,7 +38,7 @@ function JudgePageContent() {
       
       const [allPeriods, allPresenters, allQuestions] = await Promise.all([
         getPeriods(),
-        getUsers('presenter'),
+        categoryId ? getUsers('presenter', categoryId) : getUsers('presenter'),
         categoryId ? getQuestions(categoryId) : getQuestions()
       ])
       

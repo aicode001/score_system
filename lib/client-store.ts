@@ -11,8 +11,13 @@ export async function login(name: string, password: string, role: string) {
   return data
 }
 
-export async function getUsers(role?: string) {
-  const url = role ? `/api/users?role=${role}` : '/api/users'
+export async function getUsers(role?: string, categoryId?: string) {
+  let url = '/api/users'
+  const params = new URLSearchParams()
+  if (role) params.append('role', role)
+  if (categoryId) params.append('categoryId', categoryId)
+  if (params.toString()) url += `?${params.toString()}`
+  
   const res = await fetch(url)
   const data = await res.json()
   return data.success ? data.data : []

@@ -5,10 +5,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role')
+    const categoryId = searchParams.get('categoryId')
     
-    const users = role 
-      ? await dataStore.getUsersByRole(role as any)
-      : await dataStore.getUsers()
+    let users
+    if (role && categoryId) {
+      users = await dataStore.getUsersByRoleAndCategory(role as any, categoryId)
+    } else if (role) {
+      users = await dataStore.getUsersByRole(role as any)
+    } else {
+      users = await dataStore.getUsers()
+    }
     
     return NextResponse.json({ success: true, data: users })
   } catch (error: any) {
@@ -29,13 +35,13 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, name, role, password } = body
+    const { id, name, role, password, categoryId } = body
     
     if (!id) {
       return NextResponse.json({ success: false, message: '缺少用户ID' }, { status: 400 })
     }
     
-    await dataStore.updateUser(id, { name, role, password })
+    await dataStore.updateUser(id, { name, role, password, categoryId })
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })

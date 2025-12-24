@@ -4,6 +4,8 @@ export interface User {
   id: string
   name: string
   role: UserRole
+  categoryId?: string  // 评分类别ID（仅述职人员使用）
+  categoryName?: string  // 评分类别名称（仅述职人员使用）
   password?: string  // 可选,客户端获取时不包含密码
 }
 

@@ -31,7 +31,7 @@ function AdminPageContent() {
   const [editingCategory, setEditingCategory] = useState<ScoreCategory | null>(null)
   const [editingQuestion, setEditingQuestion] = useState<ScoreQuestion | null>(null)
 
-  const [newUser, setNewUser] = useState({ name: '', role: 'judge' as any, password: '123456' })
+  const [newUser, setNewUser] = useState({ name: '', role: 'judge' as any, password: '123456', categoryId: '' })
   const [newCategory, setNewCategory] = useState({ name: '', description: '', sortOrder: 0 })
   const [newQuestion, setNewQuestion] = useState({ title: '', description: '', categoryId: '', minScore: 0, maxScore: 10, step: 0.1 })
   const [newPeriod, setNewPeriod] = useState({ name: '', startDate: '', endDate: '', status: 'active' as any })
@@ -85,7 +85,8 @@ function AdminPageContent() {
       // 编辑用户
       const updates: any = {
         name: newUser.name,
-        role: newUser.role
+        role: newUser.role,
+        categoryId: newUser.categoryId || undefined
       }
       // 只有当密码不为空时才更新密码
       if (newUser.password && newUser.password.trim() !== '') {
@@ -97,7 +98,7 @@ function AdminPageContent() {
       // 添加用户
       await addUser(newUser)
     }
-    setNewUser({ name: '', role: 'judge', password: '123456' })
+    setNewUser({ name: '', role: 'judge', password: '123456', categoryId: '' })
     setShowUserModal(false)
     loadData()
   }
@@ -107,7 +108,8 @@ function AdminPageContent() {
     setNewUser({ 
       name: user.name, 
       role: user.role,
-      password: '' // 留空,表示不修改密码
+      password: '', // 留空,表示不修改密码
+      categoryId: user.categoryId || ''
     })
     setShowUserModal(true)
   }
@@ -312,6 +314,7 @@ function AdminPageContent() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">角色</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">评分类别</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">默认密码</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                     </tr>
@@ -328,6 +331,15 @@ function AdminPageContent() {
                           }`}>
                             {user.role === 'judge' ? '评委' : user.role === 'presenter' ? '述职人员' : '管理员'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {user.categoryName ? (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">
+                              {user.categoryName}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-500">123456</span>
@@ -608,6 +620,28 @@ function AdminPageContent() {
                   <option value="admin">管理员</option>
                 </select>
               </div>
+              {newUser.role === 'presenter' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    评分类别 <span className="text-xs text-gray-500">(选填)</span>
+                  </label>
+                  <select
+                    value={newUser.categoryId}
+                    onChange={(e) => setNewUser({ ...newUser, categoryId: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">无类别</option>
+                    {categories.map(category => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    设置评分类别后，评委选择该类别打分时只会看到此述职人员
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   密码 {editingUser && <span className="text-xs text-gray-500">(留空则不修改)</span>}
@@ -629,7 +663,7 @@ function AdminPageContent() {
                 onClick={() => {
                   setShowUserModal(false)
                   setEditingUser(null)
-                  setNewUser({ name: '', role: 'judge', password: '123456' })
+                  setNewUser({ name: '', role: 'judge', password: '123456', categoryId: '' })
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
