@@ -176,6 +176,16 @@ function JudgePageContent() {
     })
   }
 
+  // 计算当前总分
+  const calculateTotalScore = () => {
+    if (questions.length === 0) return 0
+    let total = 0
+    questions.forEach((q: any) => {
+      total += scores[q.id] || q.minScore
+    })
+    return total.toFixed(1)
+  }
+
   if (loading || !currentUser) {
     return <div className="min-h-screen flex items-center justify-center">加载中...</div>
   }
@@ -191,9 +201,18 @@ function JudgePageContent() {
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">评委打分</h1>
-            <p className="text-gray-600">当前评委: {currentUser.name}</p>
+          <div className="mb-6 flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">评委打分</h1>
+              <p className="text-gray-600">当前评委: {currentUser.name}</p>
+            </div>
+            {selectedPresenter && questions.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg px-6 py-4 text-center">
+                <div className="text-sm text-gray-600 mb-1">当前总分</div>
+                <div className="text-4xl font-bold text-purple-600">{calculateTotalScore()}</div>
+                <div className="text-xs text-gray-500 mt-1">{questions.length} 个题目</div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
